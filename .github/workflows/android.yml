@@ -1,0 +1,72 @@
+name: 构建 APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:        # 也可以在 Actions 页面手动点按钮触发
+
+permissions:
+  contents: write           # 发布 Release 需要写权限
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装 Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: 补齐 Android SDK 组件
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
+          echo "ANDROID_HOME=$ANDROID_HOME"
+
+      - name: 编译 Release APK
+        run: |
+          set -e
+          echo "gradle 路径：$(command -v gradle || echo '未找到')"
+          gradle --version
+          gradle assembleRelease --no-daemon --stacktrace
+
+      - name: 整理产物
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk out/sudoku-9x9.apk
+          ls -lh out
+
+      - name: 上传 APK（Artifacts，需登录 GitHub 下载）
+        uses: actions/upload-artifact@v4
+        with:
+          name: sudoku-9x9-apk
+          path: out/sudoku-9x9.apk
+          if-no-files-found: error
+
+      - name: 发布 Release（手机打开链接即可下载安装）
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: 数字九宫格 · 最新构建
+          body: |
+            纯离线单机数独游戏 · 4 个难度（简单/中级/高级/地狱）× 每档 20 关
+            构建号 #${{ github.run_number }}
+            安装包：`sudoku-9x9.apk`（Android 8.0 及以上）
+          files: out/sudoku-9x9.apk
+          make_latest: true
