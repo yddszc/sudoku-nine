@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = 'SudokuNine'
-include ':app'
+rootProject.name = "SudokuNine"
+include(":app")

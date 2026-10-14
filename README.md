@@ -1,141 +1,202 @@
-# 数字九宫格 · 安卓版
+# 数字九宫格 · 上传 GitHub & 自动构建 APK 指南
 
 把网页版数独（4 个难度 × 每档 20 关，共 80 关）封装成安卓 App。
-**不需要在本机装 Android 开发环境**——推到 GitHub 后由 Actions 自动编译出 APK。
+**本机不需要装 Android 开发环境**——推到 GitHub 后由 Actions 自动编译出 APK。
 
-- 游戏本体：`app/src/main/assets/sudoku.html`（单文件、离线、自带 80 关题库）
-- 外壳：`app/src/main/java/com/orange/sudoku/MainActivity.java`（WebView 承载 + 返回键接管）
-- 无任何权限申请：不联网、不读存储，纯单机
+玩法：9×9 棋盘，每行、每列、每个 3×3 宫填 1-9 不重复。四档难度：简单 / 中级 / 高级 / 地狱，每档 20 关，顺序解锁并自动保存进度。
 
 ---
 
-## 一、三步拿到 APK
+## 快速开始
 
-### 第 1 步：在 GitHub 建一个空仓库
+### 第一步：在 GitHub 创建仓库
 
-打开 <https://github.com/new>，仓库名填 `sudoku-nine`（随意），
-**不要**勾选 "Add a README file"，然后点 `Create repository`。
+1. 打开 [github.com/new](https://github.com/new)
+2. 仓库名填 `sudoku-nine`（或任意名字）
+3. 选 **Private**（推荐，保护隐私；仓库里的签名文件也就不会公开）
+4. **不要**勾选 "Add a README file"
+5. 点击 **Create repository**
 
-### 第 2 步：把本工程传上去（两种方式任选）
+### 第二步：把代码推送上去
 
-**方式 A：网页拖拽（不用装任何工具，推荐）**
-
-1. 解压本工程压缩包，进入解压后的文件夹
-2. 在仓库页面点 `uploading an existing file`（或 `Add file → Upload files`）
-3. 把文件夹里的**所有内容**（`app`、`keystore`、`.github`、`build.gradle` 等）拖进上传区
-4. 点 `Commit changes`
-
-> 如果 `.github` 文件夹没被上传（网页上传偶尔会忽略以点开头的目录）：
-> 在仓库里点 `Add file → Create new file`，文件名输入
-> `.github/workflows/android.yml`（输入 `/` 会自动建目录），
-> 然后把本工程里同路径文件的内容整段粘贴进去，提交即可。
-
-**方式 B：命令行（本机已装 git）**
+在这个 `sudoku-android` 文件夹里，打开终端（Windows 用 Git Bash 或 PowerShell）：
 
 ```bash
-cd 解压后的目录
+# 初始化 git
 git init
+
+# 添加所有文件
 git add .
-git commit -m "数字九宫格 安卓版"
-git branch -M main
+
+# 第一次提交
+git commit -m "feat: 数字九宫格 安卓版初版"
+
+# 关联你的 GitHub 仓库（把下面的 URL 换成你刚建的仓库地址）
 git remote add origin https://github.com/你的用户名/sudoku-nine.git
+
+# 推送
+git branch -M main
 git push -u origin main
 ```
 
-首次推送会弹出 GitHub 登录窗口，登录一次即可。
+推送成功后，GitHub Actions 会**自动开始构建**，无需任何额外操作。
 
-### 第 3 步：等 3-5 分钟，下载 APK
+> 不想用命令行？也可以在仓库页面点 `Add file → Upload files`，
+> 打开解压出来的文件夹后按 `Ctrl+A` 全选里面的**所有内容**（注意别把外层文件夹本身拖进去），
+> 一起拖到上传区提交。
+> 提交后**务必检查**仓库里有没有 `.github/workflows/build-apk.yml`：
+> 网页上传有时会漏掉点开头的隐藏目录，漏了的话点 `Add file → Create new file`，
+> 文件名输入 `.github/workflows/build-apk.yml`，把本工程同路径文件的内容整段粘进去即可。
 
-推送成功后 GitHub 会**自动开始编译**：
+### 第三步：下载 APK
 
-- 看进度：仓库页顶部 `Actions` 标签 → 点最新一次 `构建 APK`
-- 下载方式一（推荐，手机直接装）：
-  编译成功后会自动发布到 Releases，手机浏览器打开
-  `https://github.com/你的用户名/sudoku-nine/releases/latest/download/sudoku-9x9.apk`
-  即可直接下载安装（仓库设为 Public 时无需登录）
-- 下载方式二：在 Actions 那次运行的页面底部 `Artifacts` 里下载 `sudoku-9x9-apk`（需登录 GitHub）
+1. 打开你的 GitHub 仓库页面
+2. 点击顶部的 **Actions** 标签
+3. 找到最新一次 **Build APK** 任务，点进去
+4. 等待构建完成（**通常 3~6 分钟**）
+5. 页面底部 **Artifacts** 区域会出现：
+   - `sudoku-9x9-apk-编号` → 点开下载 zip，解压后有两个 APK：
+     - `sudoku-9x9-release.apk` → **正式版（推荐装这个）**
+     - `sudoku-9x9-debug.apk` → 调试版（内容一样，只是带调试信息）
+6. 把 APK 发到手机上安装（微信/QQ 传文件、数据线拷贝都行），
+   手机上需要允许"未知来源应用"安装
 
-**安装时**手机可能提示"未知来源应用"，在弹窗里选择允许安装即可。
+**另一个更省事的下载入口**：构建成功后会自动生成 Release，
+电脑或手机浏览器打开下面这个地址可直接下载，**链接长期有效**（Artifacts 30 天后会过期）：
+
+```
+https://github.com/你的用户名/sudoku-nine/releases/latest/download/sudoku-9x9-release.apk
+```
+
+> 仓库是 Private 时，这个链接需要先登录 GitHub。
+> 手机上下载不方便的话，就在电脑上从 Actions 里下载后传给手机。
 
 ---
 
-## 二、常用修改
+## 后续每次更新
 
-| 想改什么 | 改哪里 |
+改完游戏内容后（改法见下面"更新游戏内容"一节）：
+
+```bash
+git add .
+git commit -m "feat: 调整了xxx"
+git push
+```
+
+推送后 GitHub Actions 自动重新构建，几分钟后按同样的方式下载新 APK。
+因为签名固定，**新版本可以直接覆盖安装，通关进度不会丢**。
+
+---
+
+## 工程结构
+
+```
+sudoku-android/
+├── app/
+│   ├── build.gradle.kts                    应用配置（包名、版本号、签名、SDK 版本）
+│   └── src/main/
+│       ├── AndroidManifest.xml             清单（不申请任何权限）
+│       ├── assets/sudoku.html              游戏本体（单文件、离线、含 80 关题库）
+│       ├── java/com/orange/sudoku/
+│       │   └── MainActivity.java           WebView 外壳 + 返回键接管
+│       └── res/                            图标、主题、应用名
+├── keystore/sudoku.jks                     固定签名文件（务必保留）
+├── .github/workflows/build-apk.yml         自动构建脚本
+├── build.gradle.kts / settings.gradle.kts  工程配置
+└── gradle.properties
+```
+
+App 名称、图标、包名等要改的话见文末"常用修改"。
+
+---
+
+## 关于签名（重要，和以前几个 App 的做法不同）
+
+以前 `戒了么`、`AutoClicker` 等工程为了省事，`*.jks` 被 .gitignore 排除，CI 只能出**未签名**的 Release 包，
+实际装的是 debug 包——而 debug 签名每次构建都会变，导致**新版本必须卸载旧版才能装，进度会清空**。
+
+这个游戏把进度存在本机，所以我做了改进：
+
+| 项目 | 说明 |
 | --- | --- |
-| 游戏内容/题库/界面 | 替换 `sudoku-game/game.template.html` 后重新生成并替换 `app/src/main/assets/sudoku.html`（见下） |
-| App 名称 | `app/src/main/res/values/strings.xml` 里的 `app_name` |
-| 版本号 | `app/build.gradle` 里的 `versionCode`（每次必须递增）/ `versionName` |
-| 包名 | `app/build.gradle` 的 `applicationId`（改了就是另一个 App，能共存） |
-| 图标 | `app/src/main/res/drawable/ic_launcher_background.xml` 与 `ic_launcher_foreground.xml`（矢量图，直接改颜色/形状） |
-| 最低安卓版本 | `app/build.gradle` 的 `minSdk`（当前 26 = Android 8.0） |
-| 允许横屏 | `AndroidManifest.xml` 中删掉 `android:screenOrientation="portrait"` |
+| 签名文件 | `keystore/sudoku.jks`，随仓库一起提交 |
+| 密码 / 别名 | `sudoku123` / `sudoku` |
+| 好处 | 每次构建签名一致 → 新版直接覆盖安装，**进度和星级不丢** |
+| 注意 | 请勿外传；不要用它去应用商店上架（上架需要独立密钥） |
 
-### 更新游戏内容的标准流程
+想沿用以前"不签名"的做法：删掉 `keystore/` 目录，并把 `app/build.gradle.kts` 里的
+`signingConfigs { ... }` 和两处 `signingConfig = ...` 一起删掉即可。
+
+---
+
+## 更新游戏内容
 
 游戏网页的源工程就是本工作区的 `sudoku-game/` 目录：
 
 ```bash
-# 1. 改 game.template.html（界面/逻辑）或 generate.js（题库难度参数）
-# 2. 重新生成网页 + 重新生成题库
-node sudoku-game/build.js        # 生成 数字九宫格.html
-node sudoku-game/generate.js     # 只有在改题库参数时才需要
+# 1. 改 sudoku-game/game.template.html（界面与逻辑）
+#    或 sudoku-game/generate.js（题库难度参数，改完要重跑生成题库）
+# 2. 重新生成网页
+node sudoku-game/build.js
+node sudoku-game/generate.js      # 仅题库参数有变动时才需要
 # 3. 同步进安卓工程
 cp 数字九宫格.html sudoku-android/app/src/main/assets/sudoku.html
 # 4. 提交推送，GitHub 自动重新出包
 ```
 
----
-
-## 三、关于签名（重要）
-
-`keystore/sudoku.jks` 是**随仓库一起提交**的固定签名文件：
-
-- 密码：`sudoku123`，别名：`sudoku`
-- 作用是让每次编译出的 APK 签名一致，这样**新版本能直接覆盖安装旧版本**，
-  玩家的关卡进度不会丢
-- 如果换了签名文件，手机上必须先卸载旧版才能装新版，**通关进度会清空**
-- 请不要把这个签名文件用于正式上架（应用商店要求独立密钥，且泄露有风险）
-- 仓库如果是 Public，任何人都能看到这个密钥。介意的话把仓库设为 Private
+只改网页的话，第 3 步做完直接 push 就行，不用动任何 Java 代码。
 
 ---
 
-## 四、构建失败怎么排查
+## 常用修改
 
-| 现象 | 原因与处理 |
+| 想改什么 | 改哪里 |
 | --- | --- |
-| Actions 页面提示工作流语法错误 | `.github/workflows/android.yml` 粘贴时缩进被破坏，重新整段粘贴一次 |
-| `Could not find or load main class` / `gradle: command not found` | 编译步骤少了 `setup-gradle`，确认工作流里 `gradle/actions/setup-gradle@v4` 那一步在编译之前 |
-| `Failed to find Platform SDK with path: platforms;android-34` | 工作流里"补齐 Android SDK 组件"那步没执行成功，重新 Run workflow 一次 |
-| `Keystore file not found` | `keystore/sudoku.jks` 没上传成功（网页上传请确认该文件包含在内） |
-| 手机提示"应用未安装"/"签名冲突" | 手机上已装有不同签名的同包名版本，先卸载再装 |
-| 混淆相关报错 | 本工程 `minifyEnabled false`，若你手动开启需自行补 keep 规则 |
+| App 名称 | `app/src/main/res/values/strings.xml` 的 `app_name` |
+| 版本号 | `app/build.gradle.kts` 的 `versionCode`（每次必须递增）/ `versionName` |
+| 包名 | `app/build.gradle.kts` 的 `applicationId`（改了相当于另一个 App，可共存） |
+| 图标 | `app/src/main/res/drawable/ic_launcher_background.xml`、`ic_launcher_foreground.xml`（矢量图，直接改颜色形状） |
+| 最低安卓版本 | `app/build.gradle.kts` 的 `minSdk`（当前 26 = Android 8.0） |
+| 允许横屏 | `AndroidManifest.xml` 里删掉 `android:screenOrientation="portrait"` |
 
 ---
 
-## 五、本机编译（可选，装了 Android Studio 之后）
+## 构建配置说明
 
-本工程刻意没有包含 `gradlew` 二进制文件。本机想构建时（需 JDK 17 + Android Studio）：
-
-```bash
-cd sudoku-android
-gradle wrapper --gradle-version 8.7     # 生成 gradlew
-./gradlew assembleRelease
-# 产物：app/build/outputs/apk/release/app-release.apk
-```
-
-或用 Android Studio 直接 `Open` 本目录，它会自动补齐 Gradle 配置。
+| 配置项 | 值 |
+| --- | --- |
+| 触发条件 | push 到 main/master 分支，或手动触发 |
+| 构建环境 | Ubuntu Latest + JDK 17 |
+| Gradle 版本 | 8.7 |
+| Android Gradle Plugin | 8.6.0 |
+| Compile / Target SDK | 34 |
+| Min SDK | 26 (Android 8.0+) |
+| 应用权限 | 无（不联网、不读存储） |
+| Artifact 保留时间 | 30 天 |
 
 ---
 
-## 六、工作流做了什么
+## 常见问题
 
-`.github/workflows/android.yml` 每次推送（或在 Actions 页面手动触发）会：
+**Q：构建失败怎么办？**
+A：点进 Actions 任务，展开失败的步骤查看日志，把错误信息发给我，我来修。
 
-1. 检出代码
-2. 装 JDK 17（Android Gradle Plugin 8.5 要求）
-3. 装 Gradle 8.7
-4. 补齐 `platforms;android-34`、`build-tools;34.0.0`
-5. 执行 `gradle assembleRelease`
-6. 上传 APK 到 Actions Artifacts
-7. 把 APK 发布到 Releases 的 `latest` 标签，形成一个固定下载链接
+**Q：Actions 页面里一个任务都没有？**
+A：`.github/workflows/build-apk.yml` 没上传成功，按第二步的说明补上即可。
+
+**Q：构建成功了，但"发布 Release"那一步是红叉？**
+A：仓库默认的令牌权限是只读。进 `Settings → Actions → General → Workflow permissions`，
+选 `Read and write permissions` 保存，再点 `Re-run all jobs`。
+这一步失败不影响使用，Artifacts 里的 APK 照样能下载。
+
+**Q：手机上提示"解析软件包时出现问题"或"应用未安装"？**
+A：确认手机 Android 版本 ≥ 8.0，并在设置里开启"允许安装未知来源应用"；
+若装过不同签名的同包名版本，先卸载再装。
+
+**Q：游戏进度会丢吗？**
+A：正常覆盖安装不会丢（签名固定）。只有卸载重装才会清空。
+
+**Q：想在 Android Studio 本地开发？**
+A：直接用 Android Studio 打开 `sudoku-android` 文件夹，按提示 sync Gradle 后即可运行。
+本工程刻意没有提交 `gradlew` 等二进制文件，本地需要的话在工程根目录执行
+`gradle wrapper --gradle-version 8.7` 生成即可。

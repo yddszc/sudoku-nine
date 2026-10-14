@@ -1,12 +1,14 @@
-name: 构建 APK
+name: Build APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:        # 也可以在 Actions 页面手动点按钮触发
+    branches: [ "main", "master" ]
+  # 允许手动触发
+  workflow_dispatch:
 
+# 发布 Release 需要写权限（比以前的工程多这一步，为了给手机一个固定下载链接）
 permissions:
-  contents: write           # 发布 Release 需要写权限
+  contents: write
 
 concurrency:
   group: apk-${{ github.ref }}
@@ -14,20 +16,21 @@ concurrency:
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      - name: 检出代码
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 安装 JDK 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
           java-version: '17'
+          distribution: 'temurin'
 
-      - name: 安装 Gradle 8.7
+      - name: Setup Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
@@ -38,27 +41,27 @@ jobs:
           sdkmanager "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
           echo "ANDROID_HOME=$ANDROID_HOME"
 
-      - name: 编译 Release APK
+      - name: 编译 APK（Debug + Release，都用固定签名）
         run: |
-          set -e
-          echo "gradle 路径：$(command -v gradle || echo '未找到')"
           gradle --version
-          gradle assembleRelease --no-daemon --stacktrace
+          gradle assembleDebug assembleRelease --no-daemon --stacktrace
 
       - name: 整理产物
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/release/app-release.apk out/sudoku-9x9.apk
+          cp app/build/outputs/apk/release/app-release.apk  out/sudoku-9x9-release.apk
+          cp app/build/outputs/apk/debug/app-debug.apk      out/sudoku-9x9-debug.apk
           ls -lh out
 
-      - name: 上传 APK（Artifacts，需登录 GitHub 下载）
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: sudoku-9x9-apk
-          path: out/sudoku-9x9.apk
-          if-no-files-found: error
+          name: sudoku-9x9-apk-${{ github.run_number }}
+          path: out/*.apk
+          retention-days: 30
 
-      - name: 发布 Release（手机打开链接即可下载安装）
+      # 比以前的工程多加这一步：Artifacts 30 天后会过期，Release 链接长期有效
+      - name: 发布 Release（手机打开链接即可下载）
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
@@ -67,6 +70,7 @@ jobs:
           body: |
             纯离线单机数独游戏 · 4 个难度（简单/中级/高级/地狱）× 每档 20 关
             构建号 #${{ github.run_number }}
-            安装包：`sudoku-9x9.apk`（Android 8.0 及以上）
-          files: out/sudoku-9x9.apk
+
+            安装包：`sudoku-9x9-release.apk`（Android 8.0 及以上，固定签名，可直接覆盖升级）
+          files: out/sudoku-9x9-release.apk
           make_latest: true
