@@ -54,19 +54,23 @@ git push -u origin main
 2. 点击顶部的 **Actions** 标签
 3. 找到最新一次 **Build APK** 任务，点进去
 4. 等待构建完成（**通常 3~6 分钟**）
-5. 页面底部 **Artifacts** 区域会出现：
-   - `sudoku-9x9-apk-编号` → 点开下载 zip，解压后有两个 APK：
-     - `sudoku-9x9-release.apk` → **正式版（推荐装这个）**
-     - `sudoku-9x9-debug.apk` → 调试版（内容一样，只是带调试信息）
+5. 页面底部 **Artifacts** 区域会出现 `sudoku-9x9-apk-编号` → 点开下载 zip，里面有两个 APK：
+   - `sudoku-9x9-debug.apk` → **调试包（主产物，装这个就行）**
+   - `sudoku-9x9-release.apk` → 正式包（内置内容完全相同，区别只是关掉了调试开关）
 6. 把 APK 发到手机上安装（微信/QQ 传文件、数据线拷贝都行），
    手机上需要允许"未知来源应用"安装
+
+> 两个包用的**是同一套签名**，装哪个都一样，也都能互相覆盖升级。
+> 调试包多带一份调试信息，体积略大一点点，自己用完全没影响。
 
 **另一个更省事的下载入口**：构建成功后会自动生成 Release，
 电脑或手机浏览器打开下面这个地址可直接下载，**链接长期有效**（Artifacts 30 天后会过期）：
 
 ```
-https://github.com/你的用户名/sudoku-nine/releases/latest/download/sudoku-9x9-release.apk
+https://github.com/你的用户名/sudoku-nine/releases/latest/download/sudoku-9x9-debug.apk
 ```
+
+（想要正式包就把文件名换成 `sudoku-9x9-release.apk`）
 
 > 仓库是 Private 时，这个链接需要先登录 GitHub。
 > 手机上下载不方便的话，就在电脑上从 Actions 里下载后传给手机。
@@ -113,7 +117,7 @@ App 名称、图标、包名等要改的话见文末"常用修改"。
 ## 关于签名（重要，和以前几个 App 的做法不同）
 
 以前 `戒了么`、`AutoClicker` 等工程为了省事，`*.jks` 被 .gitignore 排除，CI 只能出**未签名**的 Release 包，
-实际装的是 debug 包——而 debug 签名每次构建都会变，导致**新版本必须卸载旧版才能装，进度会清空**。
+实际装的是 debug 包——而 GitHub 每次构建都会新生成一个调试签名，导致**新版本必须卸载旧版才能装，进度会清空**。
 
 这个游戏把进度存在本机，所以我做了改进：
 
@@ -121,11 +125,12 @@ App 名称、图标、包名等要改的话见文末"常用修改"。
 | --- | --- |
 | 签名文件 | `keystore/sudoku.jks`，随仓库一起提交 |
 | 密码 / 别名 | `sudoku123` / `sudoku` |
-| 好处 | 每次构建签名一致 → 新版直接覆盖安装，**进度和星级不丢** |
-| 注意 | 请勿外传；不要用它去应用商店上架（上架需要独立密钥） |
+| Debug 包 | **也用这套固定签名** → 每次构建签名一致，新版直接覆盖安装，**进度和星级不丢** |
+| 兜底 | 万一签名文件丢失，Debug 自动改用 Android 默认调试签名，仍然能出包（只是升级要卸载） |
+| Release 包 | 同样用固定签名，且失败不会阻塞 Debug 包的产出 |
+| 注意 | 签名文件请勿外传；不要用它去应用商店上架（上架需要独立密钥） |
 
-想沿用以前"不签名"的做法：删掉 `keystore/` 目录，并把 `app/build.gradle.kts` 里的
-`signingConfigs { ... }` 和两处 `signingConfig = ...` 一起删掉即可。
+想完全回到"不签名"的老做法：删掉 `keystore/` 目录即可，`app/build.gradle.kts` 会自动跳过签名配置。
 
 ---
 
@@ -171,6 +176,9 @@ cp 数字九宫格.html sudoku-android/app/src/main/assets/sudoku.html
 | Android Gradle Plugin | 8.6.0 |
 | Compile / Target SDK | 34 |
 | Min SDK | 26 (Android 8.0+) |
+| 主产物 | `sudoku-9x9-debug.apk`（Debug 步骤失败则整个任务失败，避免出空包） |
+| 附带产物 | `sudoku-9x9-release.apk`（`continue-on-error`，失败不影响 Debug） |
+| 上传前校验 | 打印 SHA256；产物缺失时显式报错 |
 | 应用权限 | 无（不联网、不读存储） |
 | Artifact 保留时间 | 30 天 |
 
@@ -188,6 +196,15 @@ A：`.github/workflows/build-apk.yml` 没上传成功，按第二步的说明补
 A：仓库默认的令牌权限是只读。进 `Settings → Actions → General → Workflow permissions`，
 选 `Read and write permissions` 保存，再点 `Re-run all jobs`。
 这一步失败不影响使用，Artifacts 里的 APK 照样能下载。
+
+**Q：Debug 包和 Release 包该装哪个？**
+A：装 `sudoku-9x9-debug.apk`。两者游戏内容完全一样，只是 Release 关掉了调试开关、体积略小。
+两者签名相同，装错了也能直接换，不用卸载。
+
+**Q：Debug 步骤是红叉、Release 步骤是绿勾（或反过来）？**
+A：Debug 是主产物，它失败会导致整个任务失败（就会没有 APK 可下），属于必须修的情况；
+Release 失败只打红叉、不阻塞 Debug 包产出。把失败步骤的日志发我即可。
+`continue-on-error` 之外的正常红叉请一律贴日志。
 
 **Q：手机上提示"解析软件包时出现问题"或"应用未安装"？**
 A：确认手机 Android 版本 ≥ 8.0，并在设置里开启"允许安装未知来源应用"；

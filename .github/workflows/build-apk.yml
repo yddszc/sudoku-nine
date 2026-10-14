@@ -6,7 +6,7 @@ on:
   # 允许手动触发
   workflow_dispatch:
 
-# 发布 Release 需要写权限（比以前的工程多这一步，为了给手机一个固定下载链接）
+# 发布 Release 需要写权限
 permissions:
   contents: write
 
@@ -41,27 +41,41 @@ jobs:
           sdkmanager "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
           echo "ANDROID_HOME=$ANDROID_HOME"
 
-      - name: 编译 APK（Debug + Release，都用固定签名）
+      # ★ 主产物：Debug 包。这一步必须成功
+      - name: 编译 Debug APK
         run: |
           gradle --version
-          gradle assembleDebug assembleRelease --no-daemon --stacktrace
+          gradle assembleDebug --no-daemon --stacktrace
+
+      # 附带产物：Release 包。失败只打红叉，不影响上面 Debug 包的产出与上传
+      - name: 编译 Release APK（附带，失败不阻塞）
+        continue-on-error: true
+        run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: 整理产物
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/release/app-release.apk  out/sudoku-9x9-release.apk
-          cp app/build/outputs/apk/debug/app-debug.apk      out/sudoku-9x9-debug.apk
+          cp -v app/build/outputs/apk/debug/app-debug.apk out/sudoku-9x9-debug.apk
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp -v app/build/outputs/apk/release/app-release.apk out/sudoku-9x9-release.apk
+          else
+            echo "Release 包未生成（不影响 Debug 包，可忽略）"
+          fi
+          echo "===== 产物清单 ====="
           ls -lh out
+          echo "===== SHA256 ====="
+          sha256sum out/*.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: sudoku-9x9-apk-${{ github.run_number }}
           path: out/*.apk
+          if-no-files-found: error
           retention-days: 30
 
-      # 比以前的工程多加这一步：Artifacts 30 天后会过期，Release 链接长期有效
-      - name: 发布 Release（手机打开链接即可下载）
+      # Artifacts 30 天后会过期，Release 链接长期有效
+      - name: 发布 Release（长期下载链接）
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
@@ -71,6 +85,9 @@ jobs:
             纯离线单机数独游戏 · 4 个难度（简单/中级/高级/地狱）× 每档 20 关
             构建号 #${{ github.run_number }}
 
-            安装包：`sudoku-9x9-release.apk`（Android 8.0 及以上，固定签名，可直接覆盖升级）
-          files: out/sudoku-9x9-release.apk
+            - `sudoku-9x9-debug.apk` —— **调试包（主产物，直接装这个）**，Android 8.0 及以上
+            - `sudoku-9x9-release.apk` —— 正式包（内容相同，仅去掉调试开关）
+
+            两者签名一致，可互相覆盖安装，通关进度不会丢。
+          files: out/*.apk
           make_latest: true

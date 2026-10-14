@@ -2,6 +2,10 @@ plugins {
     id("com.android.application")
 }
 
+// 仓库内的固定签名文件。存在就用它（每次构建签名一致，可覆盖升级、进度不丢）；
+// 万一缺失，debug 会退回到 Android 默认 debug 签名，保证一定能出包。
+val fixedKeystore = rootProject.file("keystore/sudoku.jks")
+
 android {
     namespace = "com.orange.sudoku"
     compileSdk = 34
@@ -15,23 +19,30 @@ android {
         // 纯离线单机游戏：不申请任何权限，不需要网络
     }
 
-    // 个人自用固定签名：保证每次构建签名一致，新版本可直接覆盖安装、进度不丢
     signingConfigs {
-        create("release") {
-            storeFile = rootProject.file("keystore/sudoku.jks")
-            storePassword = "sudoku123"
-            keyAlias = "sudoku"
-            keyPassword = "sudoku123"
+        if (fixedKeystore.exists()) {
+            create("fixed") {
+                storeFile = fixedKeystore
+                storePassword = "sudoku123"
+                keyAlias = "sudoku"
+                keyPassword = "sudoku123"
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            // 默认即 debuggable = true、不混淆。
+            // 有固定签名就用固定签名，没有就用 AGP 自带的调试签名，不会构建失败。
+            if (fixedKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("fixed")
+            }
         }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            if (fixedKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("fixed")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
